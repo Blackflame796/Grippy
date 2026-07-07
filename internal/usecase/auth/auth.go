@@ -29,11 +29,6 @@ type jwtClaims struct {
 	jwt.RegisteredClaims
 }
 
-type UserRepository interface {
-	CreateUser(ctx context.Context, user *entity.User) error
-	GetByEmail(ctx context.Context, email string) (*entity.User, error)
-}
-
 func NewAuthUseCase(repo *redis_repository.SessionRepository, userRepo *repository.UserRepository, jwtSecret string, accessTTL, refreshTTL time.Duration) *AuthUseCase {
 	return &AuthUseCase{
 		repo:       repo,
@@ -133,6 +128,7 @@ func (u *AuthUseCase) Register(ctx context.Context, req SignUpRequest) (*user_us
 
 	return &user_usecase.UserResponse{
 		ID:       user.ID,
+		Avatar:   user.Avatar,
 		Email:    user.Email,
 		Username: user.Username,
 	}, nil

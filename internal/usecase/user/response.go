@@ -6,6 +6,7 @@ import (
 
 type UserResponse struct {
 	ID       uuid.UUID `json:"id"`
+	Avatar   string    `json:"avatar"`
 	Email    string    `json:"email"`
 	Username string    `json:"username"`
 }

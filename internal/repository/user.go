@@ -4,6 +4,7 @@ import (
 	entity "Grippy/internal/domain"
 	"context"
 
+	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5/pgxpool"
 )
 
@@ -72,4 +73,37 @@ func (r *UserRepository) GetByUsername(ctx context.Context, username string) (*e
 		return nil, err
 	}
 	return &user, nil
+}
+
+func (r *UserRepository) UpdateAvatar(ctx context.Context, userID uuid.UUID, avatarURL string) (*entity.User, string, error) {
+	query := `
+			WITH old_user AS (
+				SELECT avatar FROM user_schema.users WHERE id = $2
+			)
+			UPDATE user_schema.users
+			SET avatar = $1
+			WHERE id = $2
+			RETURNING id, avatar, email, username, (SELECT avatar FROM old_user) AS old_avatar
+		`
+
+	var user entity.User
+	var oldAvatar *string
+
+	err := r.db.QueryRow(ctx, query, avatarURL, userID).Scan(
+		&user.ID,
+		&user.Avatar,
+		&user.Email,
+		&user.Username,
+		&oldAvatar,
+	)
+	if err != nil {
+		return nil, "", err
+	}
+
+	var oldAvatarStr string
+	if oldAvatar != nil {
+		oldAvatarStr = *oldAvatar
+	}
+
+	return &user, oldAvatarStr, nil
 }

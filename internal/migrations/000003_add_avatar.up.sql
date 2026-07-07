@@ -1,0 +1,2 @@
+ALTER TABLE user_schema.users
+ADD COLUMN avatar TEXT DEFAULT NULL;

@@ -23,6 +23,7 @@ import (
 	"Grippy/pkg/database"
 	"Grippy/pkg/logger"
 	cache "Grippy/pkg/redis"
+	s3_storage "Grippy/pkg/s3"
 
 	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/redis/go-redis/v9"
@@ -32,11 +33,27 @@ type Server struct {
 	httpServer  *http.Server
 	dbPool      *pgxpool.Pool
 	redisClient *redis.Client
+	s3Client    *s3_storage.S3Client
 }
 
 func Init(address string, port int) (*Server, error) {
 	runtime.GOMAXPROCS(runtime.NumCPU())
 	logger.InitLogger("development")
+
+	ctx := context.Background()
+
+	s3Config := s3_storage.Config{
+		AccessKeyID:     os.Getenv("AWS_ACCESS_KEY_ID"),
+		SecretAccessKey: os.Getenv("AWS_SECRET_ACCESS_KEY"),
+		Region:          os.Getenv("AWS_REGION"),
+		Bucket:          os.Getenv("AWS_BUCKET_NAME"),
+		Endpoint:        os.Getenv("AWS_ENDPOINT"),
+	}
+
+	s3Client, err := s3_storage.NewS3Client(ctx, s3Config)
+	if err != nil {
+		return nil, fmt.Errorf("failed to initialize S3 client: %w", err)
+	}
 
 	redisClient, err := cache.NewRedisClient(fmt.Sprintf("%s:%s", os.Getenv("REDIS_HOST"), os.Getenv("REDIS_PORT")))
 	if err != nil {
@@ -50,7 +67,7 @@ func Init(address string, port int) (*Server, error) {
 	connectLink := fmt.Sprintf("postgres://%s:%s@%s:%s/%s?sslmode=disable", os.Getenv("POSTGRES_USER"), os.Getenv("POSTGRES_PASSWORD"), os.Getenv("POSTGRES_HOST"), dbPort, os.Getenv("POSTGRES_DB"))
 	dbPool := database.InitDB(connectLink)
 
-	logger.Log.Info("Database and Redis connected")
+	logger.Log.Info("Database, Redis, and S3 Storage connected successfully")
 
 	mainRouter := router.NewMainRouter()
 	mainRouter.Use(middlewares.LoggingMiddleware)
@@ -60,8 +77,9 @@ func Init(address string, port int) (*Server, error) {
 	refreshTTL := 30 * 24 * time.Hour
 	secretKey := os.Getenv("SECRET_KEY")
 	if secretKey == "" {
-		logger.Log.Fatalln("SECRET_KEY not found in environment")
+		return nil, fmt.Errorf("SECRET_KEY not found in environment")
 	}
+
 	userRepo := repository.NewUserRepository(dbPool)
 	sessionRepo := redis_repo.NewSessionRepository(redisClient)
 
@@ -78,7 +96,7 @@ func Init(address string, port int) (*Server, error) {
 
 	authMiddleware := middlewares.NewAuthMiddleware(authUC)
 
-	userUC := user_usecase.NewUserUseCase(userRepo)
+	userUC := user_usecase.NewUserUseCase(userRepo, s3Client)
 	userRouter := router.New("/user", mainRouter)
 	userRouter.Use(authMiddleware)
 	userHandler := handlers.NewUserHandler(userUC)
@@ -100,6 +118,7 @@ func Init(address string, port int) (*Server, error) {
 		},
 		dbPool:      dbPool,
 		redisClient: redisClient,
+		s3Client:    s3Client,
 	}
 
 	return srv, nil
