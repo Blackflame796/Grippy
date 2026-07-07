@@ -2,7 +2,7 @@ include .env
 export
 
 # Variables
-MIGRATIONS_PATH = ./internal/migrations
+MIGRATIONS_PATH = ./migrations
 DB_URL = "postgresql://$(POSTGRES_USER):$(POSTGRES_PASSWORD)@$(POSTGRES_HOST):$(POSTGRES_PORT)/$(POSTGRES_DB)?sslmode=disable"
 
 .PHONY: create_migration migrate_up migrate_down

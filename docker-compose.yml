@@ -1,0 +1,70 @@
+version: "3.8"
+
+services:
+  postgres-db:
+    image: postgres:15-alpine
+    container_name: grippy-postgres
+    restart: always
+    ports:
+      - "5433:5432"
+    env_file:
+      - .env
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d Grippy"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  redis-cache:
+    image: redis:7-alpine
+    container_name: grippy-redis
+    restart: always
+    ports:
+      - "6379:6379"
+    env_file:
+      - .env
+    environment:
+      - REDIS_HOST=redis-cache
+    volumes:
+      - redisdata:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+
+  migration-runner:
+    image: migrate/migrate:v4.15.2
+    container_name: grippy-migrator
+    volumes:
+      - ./migrations:/migrations
+    command: -path=/migrations
+      -database "postgres://postgres:postgres@postgres-db:5432/Grippy?sslmode=disable"
+      up
+    depends_on:
+      postgres-db:
+        condition: service_healthy
+
+  grippy-app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: grippy-backend
+    ports:
+      - "8080:8080"
+    env_file:
+      - .env
+    environment:
+      - POSTGRES_HOST=postgres-db
+      - REDIS_HOST=redis-cache
+    depends_on:
+      postgres-db:
+        condition: service_healthy
+      redis-cache:
+        condition: service_healthy
+
+volumes:
+  pgdata:
+  redisdata:

@@ -47,7 +47,7 @@ func Init(address string, port int) (*Server, error) {
 		SecretAccessKey: os.Getenv("AWS_SECRET_ACCESS_KEY"),
 		Region:          os.Getenv("AWS_REGION"),
 		Bucket:          os.Getenv("AWS_BUCKET_NAME"),
-		Endpoint:        os.Getenv("AWS_ENDPOINT"),
+		Endpoint:        os.Getenv("AWS_ENDPOINT_URL"),
 	}
 
 	s3Client, err := s3_storage.NewS3Client(ctx, s3Config)
