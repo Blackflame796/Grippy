@@ -1,31 +1,40 @@
 package main
 
 import (
-	handlers "ToDoApp/internal/core/transport/http/handlers"
-	middlewares "ToDoApp/internal/core/transport/http/middlewares"
-	"ToDoApp/pkg/database"
-	"ToDoApp/pkg/logger"
-	"ToDoApp/pkg/repository"
-	"net/http"
-	"runtime"
+	"Grippy/internal/transport/http/server"
+	"log"
+	"os"
+	"strconv"
+
+	"github.com/joho/godotenv"
 )
 
 func main() {
-	logger.InitLogger("development")
-	defer logger.Log.Sync()
-	runtime.GOMAXPROCS(runtime.NumCPU())
-	connectLink := "postgres://Blackflame:pavel08180919@localhost:5432/Grippy?sslmode=disable"
-	dbPool := database.InitDB(connectLink)
-	defer database.CloseDB()
-	logger.Log.Info("Starting server...")
-	appRouter := handlers.NewRouter()
-	appRouter.Use(middlewares.ZapLogger)
-	todoRepo := repository.NewToDoRepository(dbPool)
-	todoHandler := handlers.NewToDoHandler(todoRepo)
-	todoHandler.RegisterRoutes(appRouter)
-	err := http.ListenAndServe(":8080", appRouter.Init())
-	if err != nil {
-		logger.Log.Fatalf("Error of starting server: %v", err)
+	if err := godotenv.Load(); err != nil {
+		log.Println("Warning: No .env file found or error loading it:", err)
 	}
-	logger.Log.Info("Server successfully started")
+
+	addr := os.Getenv("ADDR")
+	if addr == "" {
+		addr = "localhost"
+	}
+
+	portStr := os.Getenv("PORT")
+	if portStr == "" {
+		portStr = "8080"
+	}
+
+	port, err := strconv.Atoi(portStr)
+	if err != nil {
+		log.Fatalf("Invalid PORT value '%s': %v", portStr, err)
+	}
+
+	srv, err := server.Init(addr, port)
+	if err != nil {
+		log.Fatalf("Failed to initialize server: %v", err)
+	}
+
+	if err := srv.Run(); err != nil {
+		log.Fatalf("Server failed: %v", err)
+	}
 }

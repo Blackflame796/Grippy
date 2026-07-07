@@ -26,3 +26,4 @@ go.work.sum
 .env.*
 logs/
 **/.DS_store
+*.rdb

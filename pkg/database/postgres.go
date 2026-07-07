@@ -4,7 +4,7 @@ import (
 	"context"
 	"time"
 
-	"ToDoApp/pkg/logger"
+	"Grippy/pkg/logger"
 
 	"github.com/jackc/pgx/v5/pgxpool"
 )
